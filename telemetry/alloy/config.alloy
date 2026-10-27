@@ -1,0 +1,126 @@
+// Grafana Alloy: the collector that sits between the app and the stores.
+// The app never talks to Loki, Tempo or Prometheus directly. It talks to Alloy.
+//
+//   app --OTLP gRPC :4317--> alloy --> tempo       (traces)
+//   app --OTLP gRPC :4317--> alloy --> prometheus  (metrics)
+//   app --Loki push :4319--> alloy --> loki        (logs)
+//
+// Pipelines read top to bottom: receiver -> processor(s) -> exporter.
+
+// ---------- receivers ----------
+
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    metrics = [otelcol.processor.deltatocumulative.default.input]
+    traces  = [
+      otelcol.processor.batch.default.input,
+      otelcol.connector.spanmetrics.default.input,
+      otelcol.connector.servicegraph.default.input,
+    ]
+    logs = [otelcol.processor.batch.default.input]
+  }
+}
+
+loki.source.api "default" {
+  http {
+    listen_address = "0.0.0.0"
+    listen_port    = 4319
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+// ---------- processors ----------
+
+// The app exports metrics as DELTA (how much since the last export).
+// Prometheus wants CUMULATIVE (how much since the process started).
+// This processor does the conversion. Sunvoy does exactly this.
+otelcol.processor.deltatocumulative "default" {
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// Level 5: RED metrics computed from spans, no app code needed.
+otelcol.connector.spanmetrics "default" {
+  histogram {
+    explicit {
+      buckets = ["50ms", "100ms", "250ms", "500ms", "1s", "5s"]
+    }
+  }
+
+  dimension {
+    name = "http.route"
+  }
+
+  dimension {
+    name = "solar.provider"
+  }
+
+  namespace = "traces.spanmetrics"
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.connector.servicegraph "default" {
+  dimensions = []
+
+  output {
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    metrics = [otelcol.exporter.prometheus.default.input]
+    traces  = [otelcol.exporter.otlp.tempo.input]
+    logs    = [otelcol.exporter.loki.default.input]
+  }
+}
+
+// ---------- exporters ----------
+
+otelcol.exporter.prometheus "default" {
+  add_metric_suffixes = true
+  forward_to          = [prometheus.remote_write.default.receiver]
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+
+    tls {
+      insecure = true
+    }
+  }
+}
+
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+livedebugging {
+  enabled = true
+}

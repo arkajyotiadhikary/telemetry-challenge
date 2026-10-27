@@ -1,0 +1,33 @@
+{
+  "name": "solar-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "dev": "OTEL_SERVICE_NAME=solar-sync NODE_OPTIONS='--require ./telemetry.cjs' node --env-file-if-exists=../.env --watch src/index.ts",
+    "start": "OTEL_SERVICE_NAME=solar-sync NODE_OPTIONS='--require ./telemetry.cjs' node --env-file-if-exists=../.env src/index.ts",
+    "load": "node src/load.ts",
+    "test": "node --test src/"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.56.0",
+    "@opentelemetry/core": "^1.30.0",
+    "@opentelemetry/exporter-metrics-otlp-grpc": "^0.57.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.57.0",
+    "@opentelemetry/resources": "^1.30.0",
+    "@opentelemetry/sdk-metrics": "^1.30.0",
+    "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/sdk-trace-node": "^1.30.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0",
+    "winston": "^3.17.0",
+    "winston-loki": "^6.1.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,54 @@
+# A worked example of an alert rule as code, file-provisioned into Grafana.
+# Level 7 asks you to add two more rules in this folder with the same shape.
+#
+# Shape:  A = query (bad)   B = query (all)   C = math   D = threshold (the condition)
+# This one reads the span metrics Alloy computes (level 5), so it works before level 4.
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: challenge
+    folder: Challenge
+    interval: 1m
+    rules:
+      - uid: http-server-errors
+        title: HTTP server errors
+        condition: D
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: chore
+          env: local
+        annotations:
+          summary: More than 10% of solar-sync HTTP requests fail (5xx) over 5 minutes
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              expr: sum(increase(traces_spanmetrics_calls_total{service_name="solar-sync", span_kind="SPAN_KIND_SERVER", status_code="STATUS_CODE_ERROR"}[5m]))
+          - refId: B
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: B
+              instant: true
+              expr: sum(increase(traces_spanmetrics_calls_total{service_name="solar-sync", span_kind="SPAN_KIND_SERVER"}[5m]))
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: math
+              expression: ($A / ($B + ($B < 10))) * ($B >= 10) * 100
+          - refId: D
+            datasourceUid: __expr__
+            model:
+              refId: D
+              type: threshold
+              expression: C
+              conditions:
+                - evaluator: { type: gt, params: [10] }

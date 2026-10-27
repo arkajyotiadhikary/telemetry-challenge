@@ -1,0 +1,5 @@
+node_modules/
+.env
+docs/journal.md
+*.log
+.DS_Store
