@@ -39,61 +39,23 @@ The app logs to the console only. Nothing reaches Grafana yet. That is the start
 
 Copy `.env.example` to `.env` when a level tells you to.
 
-## How to work a level
+## How the course works
 
-1. Read the level. Read the TODO comments it points at in `app/`.
-2. Build it.
-3. Run the "prove it" check. If you cannot see it in Grafana, it is not done.
-4. Write three lines in `docs/journal.md`: what you built, what surprised you, what you would
-   do differently. This is the part that makes it stick.
+Each level is a short lesson in four parts:
 
----
+1. **Learn**: the idea, in plain words. No prior knowledge assumed.
+2. **Tour**: a guided walk through the real files and screens.
+3. **Worked example**: a small problem solved step by step, with scripts you run yourself.
+4. **Homework**: a similar problem in the app, solved on your own, with a clear "you pass when".
 
-## Level 0: Look around (30 min)
+Then write three lines in `docs/journal.md`: what you built, what surprised you, what you would
+do differently. This is the part that makes it stick.
 
-Goal: know what each box is before you feed it.
-
-- Open Grafana, then Explore. Switch the data source between Prometheus, Loki and Tempo.
-  Each has a different query language. Write down their names.
-- Open the Alloy UI. Click a component. Find the one listening on 4317 and the one on 4319.
-- Read `telemetry/alloy/config.alloy` top to bottom. Draw the three pipelines on paper.
-
-Prove it: explain in one sentence each what Loki, Tempo and Prometheus store, and why the app
-talks to Alloy instead of to them directly.
-
-Mirrors: Sunvoy's app only knows `ALLOY_GRPC_URL` and `ALLOY_LOGS_URL`. Alloy fans out to
-Grafana Cloud. Swap the backend and the app does not change.
-
----
-
-## Level 1: Structured logs (2 to 3 hours)
-
-Goal: every log line is JSON, carries context, and lands in Loki.
-
-Build, in `app/src/logger.ts` and `app/src/log-context.ts`:
-
-1. A winston logger with two transports: a readable console format for your terminal, and
-   `winston-loki` pointing at `http://localhost:4319` with labels `service_name`, `env`,
-   `hostname`. Keep the label set small; everything else goes inside the line as fields.
-2. `runWithLogContext` and `getLogContext` on top of `AsyncLocalStorage`. Nested calls merge
-   fields; they never replace the store.
-3. A winston format that merges `getLogContext()` into every line, so `app`, `provider`,
-   `project`, `requestId` show up without being passed to the logger.
-
-Prove it:
-
-- In Explore, Loki: `{service_name="solar-sync"} | json | provider="zoho" | level="error"`
-  returns the "zero valid contacts" lines, and each one has `app` and `project` fields.
-- Kill Alloy (`docker compose stop alloy`). The app keeps running and logging to the console.
-  Start Alloy again. No crash, no unhandled rejection.
-
-Questions to answer in the journal:
-
-- Why are `app` and `project` fields inside the line, not Loki labels? (Search: label
-  cardinality.)
-- What happens to the context when you `setTimeout` inside `runWithLogContext`? Test it.
-
-Mirrors: `packages/logger/index.ts`, `LogContextStore`, `runWithLogContext`.
+| Level | Lesson |
+|---|---|
+| 0 | [Look around](lessons/level-0-look-around.md) |
+| 1 | [Structured logs](lessons/level-1-structured-logs.md) |
+| 2 to 8 | Below, in the old format. Being rewritten as lessons. |
 
 ---
 
